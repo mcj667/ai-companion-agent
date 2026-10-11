@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: ai-companion-agent
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+  ai:
+    model:
+      chat: deepseek
+      embedding:
+        text: dashscope
+    mcp:
+      client:
+        # 现在是 true：@amap/amap-maps-mcp-server 已用 npm i -g 装到本地，
+        # npx 不用再联网就能找到它。哪天又起不来（换机器 / 包被删 / 网络变了），
+        # 改回 false 就能让应用恢复正常启动，代价是 MCP 工具为空。
+        initialized: true
+        stdio:
+          servers-configuration: classpath:mcp-servers.json
+
+
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY}
+      chat:
+        options:
+          model: deepseek-chat
+
+
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:not-configured}
+      embedding:
+        options:
+          model: text-embedding-v3
+
+ai-agent:
+  chat-memory:
+    key-prefix: "chat:memory:"
+    max-messages: 20
+    ttl: 7d
+  redis:
+    host: localhost
+    port: 6379
+
+server:
+  port: 8123
+  servlet:
+    context-path: /api
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.example.aiagent.controller
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+bocha:
+  api-key: ${BOCHA_API_KEY:}

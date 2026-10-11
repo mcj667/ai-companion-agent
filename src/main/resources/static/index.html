@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 情感陪伴 Agent - 测试页面</title>
+    <style>
+        body { font-family: "Microsoft YaHei", sans-serif; max-width: 820px; margin: 30px auto; padding: 0 16px; }
+        h1 { font-size: 20px; }
+        .row { margin-bottom: 12px; }
+        input[type=text] { padding: 8px; font-size: 15px; border: 1px solid #ccc; border-radius: 4px; }
+        #message { width: 60%; }
+        #chatId { width: 120px; }
+        select { padding: 8px; font-size: 15px; }
+        button { padding: 8px 20px; font-size: 15px; cursor: pointer; border: 0; border-radius: 4px; background: #1677ff; color: #fff; }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+        #status { color: #888; font-size: 13px; margin-left: 10px; }
+        #output { white-space: pre-wrap; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 6px;
+                  padding: 14px; min-height: 120px; font-size: 15px; line-height: 1.7; }
+        .tip { color: #888; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<h1>AI 情感陪伴 Agent - 测试页面</h1>
+
+<div class="row">
+    <select id="mode">
+        <option value="chat">普通对话（POST /love/chat）</option>
+        <option value="rag">RAG 问答（POST /love/rag - 带知识库）</option>
+        <option value="chat/stream">流式对话（POST /love/chat/stream）</option>
+        <option value="report">结构化报告（POST /love/report）</option>
+    </select>
+    <span class="tip">同一个问题分别用前两个试试，能看出 RAG 的区别</span>
+</div>
+
+<div class="row">
+    <input type="text" id="message" value="怎样提升自身魅力吸引潜在伴侣？" placeholder="输入你的问题">
+    <input type="text" id="chatId" value="test1" placeholder="会话ID">
+    <button id="send">发送</button>
+    <span id="status"></span>
+</div>
+
+<div id="output">结果显示在这里……</div>
+
+<script>
+    const modeEl = document.getElementById('mode');
+    const msgEl = document.getElementById('message');
+    const chatIdEl = document.getElementById('chatId');
+    const sendBtn = document.getElementById('send');
+    const outputEl = document.getElementById('output');
+    const statusEl = document.getElementById('status');
+
+    sendBtn.onclick = async () => {
+        const message = msgEl.value.trim();
+        if (!message) { alert('先输入问题'); return; }
+
+        // 拼出要请求的地址。注意这里故意不写开头的斜杠：
+        // 页面在 /api/index.html，相对路径 love/chat 会自动补成 /api/love/chat，
+        // 写成 /love/chat 反而会丢掉 /api 这个前缀，变成 404。
+        // encodeURIComponent 也是必须的：中文要先转义，否则服务端收到的是乱码
+        const url = 'love/' + modeEl.value
+            + '?message=' + encodeURIComponent(message)
+            + '&chatId=' + encodeURIComponent(chatIdEl.value.trim());
+
+        sendBtn.disabled = true;
+        outputEl.textContent = '';
+        statusEl.textContent = '请求中……';
+        const start = Date.now();
+
+        try {
+            if (modeEl.value === 'chat/stream') {
+                await readStream(url, start);
+            } else {
+                // 普通请求：等全部返回后一次性显示
+                const response = await fetch(url, { method: 'POST' });
+                const text = await response.text();
+                outputEl.textContent = response.ok ? text : ('请求失败 ' + response.status + '：\n' + text);
+                statusEl.textContent = '完成，耗时 ' + (Date.now() - start) + ' ms';
+            }
+        } catch (e) {
+            outputEl.textContent = '出错：' + e.message;
+            statusEl.textContent = '';
+        } finally {
+            sendBtn.disabled = false;
+        }
+    };
+
+    // 流式：一边收一边显示，能看到字一个个蹦出来
+    // 注意 EventSource 只能发 GET，而我们的接口是 POST，所以只能自己用 fetch 读数据流
+    async function readStream(url, start) {
+        const response = await fetch(url, { method: 'POST' });
+        if (!response.ok) {
+            outputEl.textContent = '请求失败 ' + response.status;
+            return;
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let pieces = 0;         // 收到了多少段文字（数字大 = 真的在流式）
+        let firstAt = 0;        // 第一段到达的时间
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            // SSE 的格式是一条条 data:xxx 用空行隔开
+            const events = buffer.split('\n\n');
+            buffer = events.pop();          // 最后一段可能不完整，留到下次再拼
+            for (const event of events) {
+                for (const line of event.split('\n')) {
+                    if (!line.startsWith('data:')) continue;
+                    if (pieces === 0) {
+                        firstAt = Date.now();
+                        statusEl.textContent = '首字耗时 ' + (firstAt - start) + ' ms';
+                    }
+                    pieces++;
+                    outputEl.textContent += line.slice(5);
+                }
+            }
+        }
+        // 这一段是关键：pieces 很大说明服务端是一点点发的（真流式），
+        // 只有 1~2 段说明是攒完一次性发过来的（假流式）
+        statusEl.textContent = '收到 ' + pieces + ' 段 | 首字 ' + (firstAt - start)
+            + ' ms | 总耗时 ' + (Date.now() - start) + ' ms';
+    }
+</script>
+
+</body>
+</html>
