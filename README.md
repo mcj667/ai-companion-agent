@@ -13,8 +13,9 @@
 
 **项目状态**：后端 10 个接口 · Vue 3 前端 · 36 个测试通过
 
-<!-- 截图：把图放进 docs/images/ 后取消下面两行注释
-![主界面](docs/images/main.png)
+![主界面](docs/images/chat.png)
+
+<!-- 流式效果建议补一张动图，放到 docs/images/stream.gif 后取消下面这行注释
 ![流式输出](docs/images/stream.gif)
 -->
 
