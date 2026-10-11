@@ -8,7 +8,7 @@
         <version>3.5.15</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.example</groupId>
+    <groupId>com.aicompanion</groupId>
     <artifactId>ai-companion-agent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>AI 情感陪伴 Agent</name>

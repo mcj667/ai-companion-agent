@@ -62,7 +62,7 @@ springdoc:
   group-configs:
     - group: 'default'
       paths-to-match: '/**'
-      packages-to-scan: com.example.aiagent.controller
+      packages-to-scan: com.aicompanion.agent.controller
 
 knife4j:
   enable: true
